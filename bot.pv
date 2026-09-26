@@ -1,0 +1,56 @@
+import os
+from flask import Flask, request
+from telegram import Update
+from telegram.ext import Application, ContextTypes, MessageHandler, filters
+
+BOT_TOKEN = os.environ["BOT_TOKEN"]
+WEBHOOK_URL = os.environ["WEBHOOK_URL"]
+
+app = Flask(__name__)
+
+telegram_app = Application.builder().token(BOT_TOKEN).build()
+
+
+async def channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    post = update.channel_post
+
+    text = post.text or post.caption or ""
+
+    print("NEW CHANNEL POST")
+    print("Chat:", post.chat.username)
+    print("Message ID:", post.message_id)
+    print("Text:", text)
+
+    if post.photo:
+        photo = post.photo[-1]
+        print("Photo ID:", photo.file_id)
+
+    # مرحله بعد:
+    # اینجا عکس و متن را برای ساخت کاور ارسال می‌کنیم.
+
+
+telegram_app.add_handler(
+    MessageHandler(filters.ALL, channel_post)
+)
+
+
+@app.route("/", methods=["GET"])
+def home():
+    return "Neyshabur Bozorg Bot is running!"
+
+
+@app.route("/webhook", methods=["POST"])
+async def webhook():
+    data = request.get_json(force=True)
+    update = Update.de_json(data, telegram_app.bot)
+
+    await telegram_app.initialize()
+    await telegram_app.process_update(update)
+    await telegram_app.shutdown()
+
+    return "OK"
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
